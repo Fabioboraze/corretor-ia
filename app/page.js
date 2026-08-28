@@ -1,89 +1,102 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 const initial = {
   nome: '', tipo: 'Apartamento', bairro: '', cidade: '', preco: '', area: '', quartos: '', suites: '', vagas: '', diferenciais: '', publico: '', modo: 'alto-padrao'
 };
+
+const demo = {
+  nome: 'Residencial Vista do Mar', tipo: 'Apartamento', bairro: 'Praia da Costa', cidade: 'Vila Velha - ES', preco: 'R$ 3.500.000', area: '196', quartos: '4', suites: '4', vagas: '3', publico: 'Famílias que valorizam localização, conforto e patrimônio', modo: 'alto-padrao',
+  diferenciais: 'Vista para o mar, rooftop, duas unidades por andar, acabamento de alto padrão e localização próxima à orla.'
+};
+
+const saidas = [
+  ['campanha', 'Campanha 360°'], ['reels', 'Roteiro de Reels'], ['whatsapp', 'WhatsApp'], ['followup', 'Follow-up'], ['objecoes', 'Objeções'], ['anuncio', 'Anúncio']
+];
 
 export default function Home() {
   const [form, setForm] = useState(initial);
   const [tipoSaida, setTipoSaida] = useState('campanha');
   const [resultado, setResultado] = useState('');
   const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState('');
+  const [copiado, setCopiado] = useState(false);
 
+  const pronto = useMemo(() => Boolean(form.tipo && form.cidade && form.diferenciais.trim()), [form]);
   const change = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   async function gerar(e) {
     e.preventDefault();
-    setLoading(true);
-    setResultado('');
-    try {
-      const r = await fetch('/api/gerar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imovel: form, tipoSaida })
-      });
-      const data = await r.json();
-      setResultado(data.resultado || data.error || 'Não foi possível gerar.');
-    } catch {
-      setResultado('Erro ao gerar conteúdo. Verifique a configuração da API.');
-    } finally {
-      setLoading(false);
+    if (!pronto) {
+      setErro('Preencha pelo menos tipo, cidade e diferenciais do imóvel.');
+      return;
     }
+    setLoading(true); setResultado(''); setErro(''); setCopiado(false);
+    try {
+      const r = await fetch('/api/gerar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imovel: form, tipoSaida }) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Falha na geração.');
+      setResultado(data.resultado || 'Conteúdo não retornado.');
+    } catch (e) {
+      setErro(e.message || 'Erro ao gerar conteúdo.');
+    } finally { setLoading(false); }
   }
 
-  const fieldStyle = { padding: 12, borderRadius: 10, border: '1px solid #ccc', width: '100%', boxSizing: 'border-box' };
+  async function copiar() {
+    if (!resultado) return;
+    await navigator.clipboard.writeText(resultado);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 1800);
+  }
 
   return (
-    <main style={{ maxWidth: 1100, margin: '0 auto', padding: 24 }}>
-      <header style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1.4 }}>CORRETOR IA — MVP 0.1</div>
-        <h1 style={{ fontSize: 42, margin: '8px 0' }}>Transforme um imóvel em uma campanha de vendas.</h1>
-        <p style={{ fontSize: 18, color: '#555', maxWidth: 760 }}>Cadastre os dados uma vez e gere roteiro de Reels, anúncio, WhatsApp, follow-up, objeções e campanha completa.</p>
+    <main className="shell">
+      <header className="hero">
+        <div className="brand"><span className="brandMark">C</span><div><strong>CORRETOR IA</strong><small>Marketing & Vendas Imobiliárias</small></div></div>
+        <div className="badge">MVP 0.2</div>
+        <h1>Um imóvel. Uma entrada.<br/><span>Todo o conteúdo de vendas.</span></h1>
+        <p>Transforme informações reais do imóvel em campanhas, Reels, WhatsApp, follow-ups e argumentos comerciais prontos para usar.</p>
       </header>
 
-      <form onSubmit={gerar} style={{ background: 'white', borderRadius: 18, padding: 22, boxShadow: '0 8px 30px rgba(0,0,0,.06)' }}>
-        <h2>Motor do Imóvel</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 14 }}>
-          <input name="nome" value={form.nome} onChange={change} placeholder="Nome do imóvel/empreendimento" style={fieldStyle} />
-          <select name="tipo" value={form.tipo} onChange={change} style={fieldStyle}><option>Apartamento</option><option>Casa</option><option>Cobertura</option><option>Terreno</option><option>Comercial</option></select>
-          <input name="bairro" value={form.bairro} onChange={change} placeholder="Bairro" style={fieldStyle} />
-          <input name="cidade" value={form.cidade} onChange={change} placeholder="Cidade" style={fieldStyle} />
-          <input name="preco" value={form.preco} onChange={change} placeholder="Preço" style={fieldStyle} />
-          <input name="area" value={form.area} onChange={change} placeholder="Área em m²" style={fieldStyle} />
-          <input name="quartos" value={form.quartos} onChange={change} placeholder="Quartos" style={fieldStyle} />
-          <input name="suites" value={form.suites} onChange={change} placeholder="Suítes" style={fieldStyle} />
-          <input name="vagas" value={form.vagas} onChange={change} placeholder="Vagas" style={fieldStyle} />
-          <input name="publico" value={form.publico} onChange={change} placeholder="Público desejado" style={fieldStyle} />
-        </div>
-        <textarea name="diferenciais" value={form.diferenciais} onChange={change} placeholder="Diferenciais: vista, lazer, rooftop, localização, acabamento, condição comercial..." rows={5} style={{ ...fieldStyle, marginTop: 14 }} />
+      <section className="workspace">
+        <form onSubmit={gerar} className="panel formPanel">
+          <div className="sectionTitle"><div><small>ETAPA 1</small><h2>Motor do Imóvel</h2></div><button type="button" className="ghost" onClick={() => setForm(demo)}>Preencher exemplo</button></div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
-          <select name="modo" value={form.modo} onChange={change} style={fieldStyle}>
-            <option value="alto-padrao">Modo Alto Padrão</option>
-            <option value="direto">Modo Direto</option>
-            <option value="investidor">Modo Investidor</option>
-          </select>
-          <select value={tipoSaida} onChange={(e)=>setTipoSaida(e.target.value)} style={fieldStyle}>
-            <option value="campanha">Campanha completa</option>
-            <option value="reels">Roteiro de Reels</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="followup">Follow-up</option>
-            <option value="objecoes">Objeções</option>
-            <option value="anuncio">Anúncio</option>
-          </select>
-        </div>
+          <div className="grid">
+            <label>Imóvel / empreendimento<input name="nome" value={form.nome} onChange={change} placeholder="Ex.: Edifício Atlântico" /></label>
+            <label>Tipo<select name="tipo" value={form.tipo} onChange={change}><option>Apartamento</option><option>Casa</option><option>Cobertura</option><option>Terreno</option><option>Comercial</option></select></label>
+            <label>Bairro<input name="bairro" value={form.bairro} onChange={change} placeholder="Ex.: Praia da Costa" /></label>
+            <label>Cidade *<input name="cidade" value={form.cidade} onChange={change} placeholder="Ex.: Vila Velha - ES" /></label>
+            <label>Preço<input name="preco" value={form.preco} onChange={change} placeholder="Ex.: R$ 3.500.000" /></label>
+            <label>Área privativa<input name="area" value={form.area} onChange={change} placeholder="m²" inputMode="decimal" /></label>
+            <label>Quartos<input name="quartos" value={form.quartos} onChange={change} placeholder="0" inputMode="numeric" /></label>
+            <label>Suítes<input name="suites" value={form.suites} onChange={change} placeholder="0" inputMode="numeric" /></label>
+            <label>Vagas<input name="vagas" value={form.vagas} onChange={change} placeholder="0" inputMode="numeric" /></label>
+            <label>Público desejado<input name="publico" value={form.publico} onChange={change} placeholder="Quem deve se interessar?" /></label>
+          </div>
 
-        <button disabled={loading} style={{ marginTop: 18, padding: '14px 22px', borderRadius: 12, border: 0, background: '#111', color: 'white', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
-          {loading ? 'Gerando...' : 'Gerar com IA'}
-        </button>
-      </form>
+          <label className="wide">Diferenciais e fatos do imóvel *<textarea name="diferenciais" value={form.diferenciais} onChange={change} placeholder="Vista, lazer, rooftop, acabamento, condição comercial, localização... Use somente informações verdadeiras." rows={5} /></label>
 
-      <section style={{ marginTop: 24, background: 'white', borderRadius: 18, padding: 22, minHeight: 220, boxShadow: '0 8px 30px rgba(0,0,0,.06)' }}>
-        <h2>Resultado</h2>
-        <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', lineHeight: 1.6 }}>{resultado || 'O conteúdo gerado aparecerá aqui.'}</pre>
+          <div className="controls">
+            <label>Estilo de comunicação<select name="modo" value={form.modo} onChange={change}><option value="alto-padrao">Alto Padrão</option><option value="direto">Direto</option><option value="investidor">Investidor</option></select></label>
+            <label>O que gerar?<select value={tipoSaida} onChange={(e) => setTipoSaida(e.target.value)}>{saidas.map(([v,l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+          </div>
+
+          {erro && <div className="error">{erro}</div>}
+          <button className="primary" disabled={loading}>{loading ? <><span className="spinner"/>Criando estratégia...</> : 'Gerar com IA →'}</button>
+          <p className="guardrail">A IA é instruída a não inventar características, descontos, escassez ou promessa de valorização.</p>
+        </form>
+
+        <aside className="panel resultPanel">
+          <div className="sectionTitle"><div><small>ETAPA 2</small><h2>Conteúdo gerado</h2></div>{resultado && <button type="button" className="ghost" onClick={copiar}>{copiado ? 'Copiado ✓' : 'Copiar'}</button>}</div>
+          {!resultado && !loading && <div className="empty"><div className="spark">✦</div><h3>Pronto para criar</h3><p>Preencha os dados do imóvel e escolha o formato. O resultado aparecerá aqui pronto para adaptar e publicar.</p></div>}
+          {loading && <div className="empty"><div className="pulse">✦</div><h3>Analisando o imóvel</h3><p>Organizando diferenciais, posicionamento, linguagem e argumentos comerciais.</p></div>}
+          {resultado && <pre>{resultado}</pre>}
+        </aside>
       </section>
+
+      <footer>Feito para transformar dados reais em comunicação imobiliária melhor.</footer>
     </main>
   );
 }
